@@ -1,4 +1,7 @@
-EV_Central$ScannerWrapper.class
+EV_CP_E.class
 EV_Central.class
 EV_Central$ClientHandler.class
+EV_CP_M.class
+TestClient.class
+EV_Central$ScannerWrapper.class
 EV_Central$CPState.class
