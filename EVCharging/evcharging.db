@@ -1,0 +1,9 @@
+public ITextModifier createTextModifier(){
+	return new ITextCaseModifier(){
+		@Override
+		public string changeCase(String string){
+			return string.toUpperCase();
+		}
+	};
+	
+}
