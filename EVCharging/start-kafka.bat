@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo    INICIANDO KAFKA PARA EVCHARGING
+echo    INICIANDO KAFKA + BD PARA EVCHARGING
 echo ========================================
 echo.
 
@@ -25,6 +25,7 @@ docker exec kafka kafka-topics.sh --list --bootstrap-server localhost:9092
 echo.
 echo ========================================
 echo     KAFKA LISTO EN localhost:9092
+echo     BD SQLite se creará al ejecutar las apps
 echo     Ahora ejecuta tus aplicaciones Java
 echo ========================================
 echo.
