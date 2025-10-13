@@ -1,9 +1,42 @@
-public ITextModifier createTextModifier(){
-	return new ITextCaseModifier(){
-		@Override
-		public string changeCase(String string){
-			return string.toUpperCase();
-		}
-	};
-	
-}
+-- Tabla de Puntos de Recarga
+CREATE TABLE charging_points (
+    id VARCHAR(50) PRIMARY KEY,
+    location VARCHAR(100) NOT NULL,
+    status VARCHAR(20) DEFAULT 'DESCONECTADO',
+    price_per_kwh DECIMAL(5,2) DEFAULT 0.25,
+    current_consumption DECIMAL(5,2) DEFAULT 0,
+    current_amount DECIMAL(8,2) DEFAULT 0,
+    current_driver VARCHAR(50),
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de Conductores
+CREATE TABLE drivers (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    vehicle_type VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla de Sesiones de Carga
+CREATE TABLE charging_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    driver_id VARCHAR(50) NOT NULL,
+    cp_id VARCHAR(50) NOT NULL,
+    start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP,
+    total_consumption DECIMAL(8,2) DEFAULT 0,
+    total_amount DECIMAL(8,2) DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    FOREIGN KEY (driver_id) REFERENCES drivers(id),
+    FOREIGN KEY (cp_id) REFERENCES charging_points(id)
+);
+
+-- Tabla de Eventos del Sistema
+CREATE TABLE system_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type VARCHAR(50) NOT NULL,
+    source_id VARCHAR(50) NOT NULL,
+    description TEXT,
+    event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
