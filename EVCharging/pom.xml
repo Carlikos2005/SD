@@ -81,7 +81,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>CentralApp</mainClass>
+                            <mainClass>EV_Central</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

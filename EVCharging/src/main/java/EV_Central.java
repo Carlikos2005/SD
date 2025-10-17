@@ -33,6 +33,8 @@ public class EV_Central {
 
         int listenPort = Integer.parseInt(args[0]);
         String kafkaBootstrap = args[1];
+        
+        DatabaseManager.initializeDatabase();
 
         System.out.println("EV_Central iniciada");
         System.out.println("Puerto de escucha: " + listenPort);
@@ -175,6 +177,8 @@ public class EV_Central {
             state.costEur = msg.get("costEur").asDouble();
             state.driverId = msg.has("driverId") ? msg.get("driverId").asText() : "";
         }
+
+        DatabaseManager.updateChargingPointConsumption(cpId, state.powerKw, state.costEur, state.driverId);
     }
 
     private static void handleFault(JsonNode msg) {
@@ -182,6 +186,9 @@ public class EV_Central {
         CPState state = cpStates.get(cpId);
         if (state != null) {
             state.status = "AVERIADO";
+
+            DatabaseManager.updateChargingPointStatus(cpId, "AVERIADO");
+            DatabaseManager.logSystemEvent("CP_FAULT", cpId, "Punto reportado como averiado via Kafka");
         }
     }
 
@@ -190,6 +197,9 @@ public class EV_Central {
         CPState state = cpStates.get(cpId);
         if (state != null && "AVERIADO".equals(state.status)) {
             state.status = "ACTIVADO";
+
+            DatabaseManager.updateChargingPointStatus(cpId,"ACTIVADO");
+            DatabaseManager.logSystemEvent("CP_RECOVERED", cpId, "Punto recuperado de averia");
         }
     }
 
@@ -209,6 +219,10 @@ public class EV_Central {
                             CPState s = cpStates.get(cmd[1]);
                             if (s != null) {
                                 s.status = "PARADO";
+
+                                DatabaseManager.updateChargingPointStatus(cmd[1], "PARADO");
+                                DatabaseManager.logSystemEvent("CP_STOPPED", cmd[1], "Puesto fuera de servicio manualmente");
+
                                 System.out.println("CP " + cmd[1] + " detenido.");
                                 printPanel();
                             }
@@ -219,6 +233,10 @@ public class EV_Central {
                             CPState s = cpStates.get(cmd[1]);
                             if (s != null && "PARADO".equals(s.status)) {
                                 s.status = "ACTIVADO";
+
+                                DatabaseManager.updateChargingPointStatus(cmd[1], "ACTIVADO");
+                                DatabaseManager.logSystemEvent("CP_RESUMED", cmd[1], "Puesto reactivado manualmente");
+
                                 System.out.println("CP " + cmd[1] + " reanudado.");
                                 printPanel();
                             }
@@ -227,6 +245,9 @@ public class EV_Central {
                     case "LIST":
                         printPanel();
                         break;
+                    case "BDSTATS":
+                        printDatabaseStats();
+                        break;
                     case "EXIT":
                         System.exit(0);
                     default:
@@ -234,6 +255,22 @@ public class EV_Central {
                 }
             }
         }
+    }
+
+     private static void printDatabaseStats() {
+        System.out.println("\n" + "=".repeat(50));
+        System.out.println(" ESTADISTICAS BASE DE DATOS");
+        System.out.println("=".repeat(50));
+        
+        try {
+            var points = DatabaseManager.getAllChargingPoints();
+            System.out.println("Puntos de recarga en BD: " + points.size());
+            points.forEach(System.out::println);
+            
+        } catch (Exception e) {
+            System.err.println("Error obteniendo estadisticas BD: " + e.getMessage());
+        }
+        System.out.println("=".repeat(50));
     }
 
     // --- Persistencia ---
@@ -246,6 +283,8 @@ public class EV_Central {
                     String cpId = node.get("cpId").asText();
                     String status = node.get("status").asText();
                     cpStates.put(cpId, new CPState(cpId, status));
+
+                    DatabaseManager.updateChargingPointStatus(cpId, status);
                 }
                 System.out.println("Cargados " + cpStates.size() + " CPs desde " + CPS_FILE);
             }
