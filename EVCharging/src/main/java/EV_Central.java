@@ -93,6 +93,9 @@ public class EV_Central {
                             case "HEALTH_OK":
                                 handleHealthOk(msg);
                                 break;
+                            case "CHARGING_END":
+                                handleChargingEnd(msg);
+                                break;
                             default:
                                 System.out.println("Evento Kafka desconocido: " + type);
                         }
@@ -145,7 +148,12 @@ public class EV_Central {
                         String driverId = parts[2];
                         CPState state = cpStates.get(cpId);
                         if (state != null && "ACTIVADO".equals(state.status)) {
-                            // Aquí podrías enviar START_CHARGING al CP por otro canal (ej. Kafka o socket)
+
+                            DatabaseManager.updateChargingPointStatus(cpId, "SUMINISTRANDO");
+                            DatabaseManager.updateChargingPointConsumption(cpId, 0.0, 0.0, driverId);
+                            DatabaseManager.createChargingSession(driverId, cpId);
+                            DatabaseManager.logSystemEvent("CHARGING_STARTED", cpId, "Conductor " + driverId + " inició carga");
+
                             System.out.println("Autorizando recarga para conductor " + driverId + " en " + cpId);
                             out.println("AUTHORIZED");
                         } else {
@@ -176,9 +184,10 @@ public class EV_Central {
             state.powerKw = msg.get("powerKw").asDouble();
             state.costEur = msg.get("costEur").asDouble();
             state.driverId = msg.has("driverId") ? msg.get("driverId").asText() : "";
+
+            DatabaseManager.updateChargingPointConsumption(cpId, state.powerKw, state.costEur, state.driverId);
         }
 
-        DatabaseManager.updateChargingPointConsumption(cpId, state.powerKw, state.costEur, state.driverId);
     }
 
     private static void handleFault(JsonNode msg) {
@@ -202,6 +211,19 @@ public class EV_Central {
             DatabaseManager.logSystemEvent("CP_RECOVERED", cpId, "Punto recuperado de averia");
         }
     }
+
+    private static void handleChargingEnd(JsonNode msg) {
+        String cpId = msg.get("cpId").asText();
+        String driverId = msg.get("driverId").asText();
+        double totalConsumption = msg.get("totalConsumption").asDouble();
+        double totalAmount = msg.get("totalAmount").asDouble();
+        
+        DatabaseManager.finishChargingSession(driverId, cpId, totalConsumption, totalAmount);
+        DatabaseManager.updateChargingPointStatus(cpId, "ACTIVADO");
+        DatabaseManager.logSystemEvent("CHARGING_ENDED", cpId, 
+            "Carga finalizada - Consumo: " + totalConsumption + "kW, Importe: " + totalAmount + "€");
+    }
+
 
     // --- Comandos de consola ---
     static class ScannerWrapper {
