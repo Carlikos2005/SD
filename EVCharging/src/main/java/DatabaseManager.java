@@ -46,6 +46,16 @@ public class DatabaseManager {
                 FOREIGN KEY (cp_id) REFERENCES charging_points(id)
             )
             """;
+
+        String createSystemEventsTable = """
+            CREATE TABLE IF NOT EXISTS system_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type VARCHAR(50) NOT NULL,
+                source_id VARCHAR(50) NOT NULL,
+                description TEXT,
+                event_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """;
         
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
@@ -53,6 +63,7 @@ public class DatabaseManager {
             stmt.execute(createChargingPointsTable);
             stmt.execute(createDriversTable);
             stmt.execute(createChargingSessionsTable);
+            stmt.execute(createSystemEventsTable);
             
             insertSampleData();
             
@@ -166,5 +177,53 @@ public class DatabaseManager {
         }
         
         return points;
+    }
+
+    public static void createChargingSession(String driverId, String cpId) {
+        String sql = "INSERT INTO charging_sessions (driver_id, cp_id, status) VALUES (?, ?, 'ACTIVE')";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, driverId);
+            pstmt.setString(2, cpId);
+            pstmt.executeUpdate();
+            
+        } catch (SQLException e) {
+            System.err.println("Error creando sesión: " + e.getMessage());
+        }
+    }
+
+    public static void finishChargingSession(String driverId, String cpId, double totalConsumption, double totalAmount) {
+        String sql = "UPDATE charging_sessions SET end_time = CURRENT_TIMESTAMP, total_consumption = ?, total_amount = ?, status = 'FINISHED' WHERE driver_id = ? AND cp_id = ? AND status = 'ACTIVE'";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setDouble(1, totalConsumption);
+            pstmt.setDouble(2, totalAmount);
+            pstmt.setString(3, driverId);
+            pstmt.setString(4, cpId);
+            pstmt.executeUpdate();
+            
+        } catch (SQLException e) {
+            System.err.println("Error finalizando sesión: " + e.getMessage());
+        }
+    }
+
+    public static void logSystemEvent(String eventType, String sourceId, String description) {
+        String sql = "INSERT INTO system_events (event_type, source_id, description) VALUES (?, ?, ?)";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, eventType);
+            pstmt.setString(2, sourceId);
+            pstmt.setString(3, description);
+            pstmt.executeUpdate();
+            
+        } catch (SQLException e) {
+            System.err.println("Error registrando evento: " + e.getMessage());
+        }
     }
 }
